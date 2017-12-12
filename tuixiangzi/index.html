@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>推箱子</title>
+    <style>
+        #canvas {
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas" width="500" height="500"></canvas>
+<div class="step">0</div>
+<button class="btn_back">撤销上一步</button>
+
+<script>
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+    var src = {
+        block: createImg("./images/block.gif"),
+        ball: createImg("./images/ball.png"),
+        box: createImg("./images/box.png"),
+        wall: createImg("./images/wall.png"),
+        left: createImg("./images/left.png")
+    }
+    var cw = canvas.width;
+    var ch = canvas.height;
+    var people;
+    var old = [];
+    var ball = [];
+    var step = document.getElementsByClassName("step")[0];
+    var btn_back = document.getElementsByClassName("btn_back")[0];
+    var arr_all = [];
+    arr_all[0] = [
+        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 2, 0, 0, 1, 1, 0],
+        [0, 1, 0, 0, 3, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 4, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ]
+    arr_all[1] = [
+        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 1, 0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 2, 0, 0, 1, 1, 0],
+        [0, 1, 0, 0, 3, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 4, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ]
+    arr_all[2] = [
+        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 2, 0, 0, 1, 1, 0],
+        [0, 1, 0, 0, 3, 0, 0, 0, 1, 0],
+        [0, 1, 0, 1, 4, 0, 0, 0, 1, 0],
+        [0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    ]
+    var arr1 = arr_all[0];
+    var arr = copyArr(arr1);
+    var num = 0;
+    var box = {
+        w: cw / arr[0].length,
+        h: ch / arr.length,
+    }
+    window.onload = function () {
+        init()
+    }
+
+    function key(event, people) {
+        var e = event || window.event || arguments.callee.caller.arguments[0];
+        switch (e.keyCode) {
+            case 37:
+            case 65:
+                move("left", people);
+                break;
+            case 38:
+            case 87:
+                move("up", people);
+                break;
+            case 39:
+            case 68:
+                move("right", people);
+                break;
+            case 40:
+            case 83:
+                move("down", people);
+                break;
+        }
+    };
+    function des() {
+        document.onkeydown = null;
+        btn_back.onclick = null;
+        console.log(people)
+        people = null;
+        old = [];
+        ball = []
+        moveNext()
+        console.log(people)
+    }
+    function back(people) {
+        var old_len = old.length;
+        if (old_len <= 0) {
+            return false
+        }
+        var old_last = old[old_len - 1];
+        old.pop();
+        for (var i = 0; i < old_last.length; i++) {
+            arr[old_last[i].y][old_last[i].x] = old_last[i].type;
+        }
+        people.set(old_last[0].x, old_last[0].y)
+        reDraw(old_last)
+    };
+    function init() {
+        draw(arr);
+        document.onkeydown = function (e) {
+            key(e, people)
+        };
+        btn_back.onclick = function () {
+            back(people)
+        };
+    }
+    function draw(arr) {
+        ctx.clearRect(0, 0, cw, ch)
+        for (var i = 0; i < arr.length; i++) {
+            for (var j = 0; j < arr[i].length; j++) {
+                drawBlock(i, j)
+                if (arr[i][j] != 0) {
+                    drawImg(i, j)
+                }
+                if (arr[i][j] == 2) {
+                    ball.push({x: j, y: i})
+                }
+                if (arr[i][j] == 4) {
+                    people = new People(j, i)
+                }
+            }
+        }
+    }
+    function drawBlock(n, m) {
+        ctx.drawImage(src.block, box.w * m, box.h * n, box.w, box.h);
+    }
+    function drawImg(n, m) {
+        var srcImg;
+        var type = arr[n][m];
+        switch (type) {
+            case 1:
+                srcImg = src.wall // 墙
+                break;
+            case 2:
+                srcImg = src.ball  // 球
+                break
+            case 3:
+                srcImg = src.box  // 箱子
+                break
+            case 4:
+                srcImg = src.left  //  人
+                break;
+            default:
+                srcImg = src.block;
+                break;
+        }
+        ctx.drawImage(srcImg, box.w * m, box.h * n, box.w, box.h);
+    }
+    function move(type, people) {
+        var x = people.getX();
+        var y = people.getY();
+        var c1 = {
+            x: x,
+            y: y
+        }
+        var c2 = {
+            x: x,
+            y: y
+        }
+        switch (type) {
+            case "left":
+                c1.x = x - 1;
+                c2.x = x - 2;
+                break;
+            case "right":
+                c1.x = x + 1;
+                c2.x = x + 2;
+                break;
+            case "up":
+                c1.y = y - 1;
+                c2.y = y - 2;
+                break;
+            case "down":
+                c1.y = y + 1;
+                c2.y = y + 2;
+                break;
+        }
+        var next = arr[c1.y][c1.x];
+        var nextNext = arr[c2.y][c2.x];
+        var change = [];
+        if (next == 0 || next == 3 || next == 2) {
+            change.push({x: x, y: y}, c1);
+            if (next == 3) {
+                if (nextNext == 0 || nextNext == 2) {
+                    change.push(c2);
+                    c1.type = arr[c1.y][c1.x];
+                    c2.type = arr[c2.y][c2.x];
+                    old.push([{x: x, y: y, type: arr[y][x]}, c1, c2]);
+                    arr[y][x] = arr1[y][x] == 2 ? 2 : 0;
+                    arr[c1.y][c1.x] = 4;
+                    arr[c2.y][c2.x] = 3;
+                    reDraw(change)
+                    success();
+                    people.set(c1.x, c1.y) ;
+                }
+            } else {
+                c1.type = arr[c1.y][c1.x];
+                old.push([{x: x, y: y, type: arr[y][x]}, c1]);
+                arr[y][x] = arr1[y][x] == 2 ? 2 : 0;
+                arr[c1.y][c1.x] = 4;
+                reDraw(change);
+                success();
+                people.set(c1.x, c1.y) ;
+            }
+        }
+    }
+    function reDraw(arr) {
+        for (var i = 0; i < arr.length; i++) {
+            ctx.clearRect(arr[i].x * box.w, arr[i].y * box.h, box.w, box.h);
+            drawBlock(arr[i].y, arr[i].x);
+            drawImg(arr[i].y, arr[i].x);
+        }
+        moveNext()
+    }
+    function copyArr(arr) {
+        var arr1 = [];
+        for (var i = 0; i < arr.length; i++) {
+            arr1[i] = [];
+            for (var j = 0; j < arr[i].length; j++) {
+                arr1[i].push(arr[i][j])
+            }
+        }
+        return arr1
+    }
+    function createImg(srcImg) {
+        var img = new Image();
+        img.src = srcImg;
+        return img
+    }
+    function moveNext() {
+        step.innerHTML = old.length;
+    }
+    function success() {
+        if (checkSuccess()) {
+            num++;
+            des()
+            next(num);
+        }
+    }
+    function next(num) {
+        if (num == arr_all.length){
+            alert(123)
+            return false;
+        }
+        arr1 = arr_all[num]
+        arr = copyArr(arr1);
+        init();
+    }
+    function People(x, y) {
+        this.x = x;
+        this.y = y;
+        this.getX = function () {
+            return this.x
+        }
+        this.getY = function () {
+            return this.y
+        }
+        this.set = function (x,y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+    function checkSuccess() {
+        for (var i = 0; i < ball.length; i++) {
+            if (arr[ball[i].y][ball[i].x] != 3) {
+                return false;
+            }
+        }
+        return true;
+    }
+</script>
+</body>
+</html>
